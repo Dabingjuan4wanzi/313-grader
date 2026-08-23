@@ -570,6 +570,19 @@ $("btnOcr").addEventListener("click", async ()=>{
   }
 });
 
+/* OCR 结果转行文本（兼容 text 为字符串/数组/对象的各种返回结构） */
+function toTextLines(v){
+  if(typeof v === "string") return v;
+  if(Array.isArray(v)) return v.join("\n");
+  if(v && typeof v === "object"){
+    if(Array.isArray(v.texts)) return v.texts.map(x=>typeof x==="string"?x:(x&&x.text)||"").join("\n");
+    if(Array.isArray(v.text)) return v.text.map(x=>typeof x==="string"?x:(x&&x.text)||"").join("\n");
+    if(Array.isArray(v.data)) return v.data.map(x=>typeof x==="string"?x:(x&&x.text)||"").join("\n");
+    return JSON.stringify(v);
+  }
+  return String(v || "");
+}
+
 async function recognizeBuiltin(){
   let ocr;
   setStatus("ocrStatus", "info", '<span class="spin"></span>第 1 步/共 3 步：加载识别引擎…');
@@ -588,7 +601,7 @@ async function recognizeBuiltin(){
   const res = await ocr.recognize(currentImg);
   window.__ocrPoints = (res && res.points) ? res.points : [];
   renderBoxes();
-  let text = (res && res.text) ? res.text : "";
+  let text = toTextLines(res && res.text);
   text = text.replace(/\r/g, "").split("\n").map(l=>l.trim()).join("\n").replace(/\n{3,}/g,"\n\n");
   $("ocrText").value = text;
   $("boxCanvasWrap").style.display = "block";
@@ -847,7 +860,7 @@ bindFile($("fileQ"), async (file)=>{
     setStatus("gradeStatus", "info", '<span class="spin"></span>正在识别题目…');
     await ocr.init();
     const res = await ocr.recognize(image);
-    const text = (res && res.text) ? res.text.replace(/\r/g,"") : "";
+    const text = toTextLines(res && res.text).replace(/\r/g,"");
     if(!text.trim()){ setStatus("gradeStatus", "warn", "没有识别到题目文字，请重拍或手动输入。"); }
     else{
       $("questionText").value = text;
