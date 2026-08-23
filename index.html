@@ -163,7 +163,7 @@ details li{margin:5px 0;}
 <header class="top">
   <div>
     <h1>313 论述题判卷助手</h1>
-    <div class="sub">手写拍照 → 自动识别 → AI 按阅卷规则打分</div>
+    <div class="sub">手写拍照 → 自动识别 → AI 按阅卷规则打分 · v1.4</div>
   </div>
   <div class="keybadge" id="keyBadge">未设置 Key</div>
 </header>
@@ -563,7 +563,8 @@ $("btnOcr").addEventListener("click", async ()=>{
   }catch(e){
     console.error(e);
     const m = friendlyFetchError(e);
-    setStatus("ocrStatus", "err", "识别失败：" + m + "<br>手机端最简单的方式：第 0 步把识别方式切成「内置识别（免费）」再试。");
+    const stackInfo = (e && e.stack) ? esc(String(e.stack).split("\n").slice(0,3).join("<br>")) : "";
+    setStatus("ocrStatus", "err", "识别失败：" + m + (stackInfo ? "<br><small style='opacity:.7'>错误位置：" + stackInfo + "</small>" : "") + "<br>手机端最简单的方式：第 0 步把识别方式切成「内置识别（免费）」再试。");
   }finally{
     ocrBusy = false;
     $("btnOcr").disabled = false;
