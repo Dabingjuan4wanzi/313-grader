@@ -585,24 +585,19 @@ function toTextLines(v){
 }
 
 async function recognizeBuiltin(){
-  let ocr;
-  setStatus("ocrStatus", "info", '<span class="spin"></span>第 1 步/共 3 步：加载识别引擎…');
+  setStatus("ocrStatus", "info", '<span class="spin"></span>第 1 步/共 3 步：加载识别引擎（首次需下载约 15MB，请耐心等待）…');
+  let res;
   try{
-    ocr = await getOcr();
+    await ocrV4.load();
+    setStatus("ocrStatus", "info", '<span class="spin"></span>第 2 步/共 3 步：正在识别文字（约 10~30 秒，请勿关闭页面）…');
+    res = await ocrV4.recognize(currentImg);
   }catch(e){
-    throw new Error("内置识别引擎加载失败（" + ((e && e.message) || "未知原因") + "）。建议：① 确认网络通畅；② 用手机自带浏览器（Chrome/Edge/UC），不要用微信内置浏览器；③ 刷新页面重试。");
+    console.error(e);
+    throw new Error("识别失败（" + ((e && e.message) || "未知原因") + "）。建议：① 确认网络通畅；② 用手机自带浏览器（Chrome/Edge/UC）；③ 刷新页面重试。");
   }
-  setStatus("ocrStatus", "info", '<span class="spin"></span>第 2 步/共 3 步：下载识别模型（约 8MB，首次较慢，请耐心等待）…');
-  try{
-    await ocr.init();
-  }catch(e){
-    throw new Error("识别模型初始化失败（" + ((e && e.message) || "未知原因") + "）。可能原因：模型下载被网络拦截，或浏览器不支持 WebGL。建议：① 换网络（如关 WiFi 用流量）重试；② 换手机自带浏览器；③ 或在设置里改用 AI Studio 模式。");
-  }
-  setStatus("ocrStatus", "info", '<span class="spin"></span>第 3 步/共 3 步：正在识别文字…');
-  const res = await ocr.recognize(currentImg);
   window.__ocrPoints = (res && res.points) ? res.points : [];
   renderBoxes();
-  let text = toTextLines(res && res.text);
+  let text = (res && res.text) ? res.text : "";
   text = text.replace(/\r/g, "").split("\n").map(l=>l.trim()).join("\n").replace(/\n{3,}/g,"\n\n");
   $("ocrText").value = text;
   $("boxCanvasWrap").style.display = "block";
@@ -857,11 +852,10 @@ bindFile($("fileQ"), async (file)=>{
   try{
     const {canvas, image} = await compressImage(file);
     setStatus("gradeStatus", "info", '<span class="spin"></span>正在加载识别引擎…');
-    const ocr = await getOcr();
+    await ocrV4.load();
     setStatus("gradeStatus", "info", '<span class="spin"></span>正在识别题目…');
-    await ocr.init();
-    const res = await ocr.recognize(image);
-    const text = toTextLines(res && res.text).replace(/\r/g,"");
+    const res = await ocrV4.recognize(image);
+    const text = ((res && res.text) || "").replace(/\r/g,"");
     if(!text.trim()){ setStatus("gradeStatus", "warn", "没有识别到题目文字，请重拍或手动输入。"); }
     else{
       $("questionText").value = text;
@@ -1056,6 +1050,7 @@ document.addEventListener("keydown", (e)=>{
   if(e.key === "Enter" && e.target.tagName === "INPUT" && e.target.type !== "password") e.preventDefault();
 });
 </script>
+<script src="./ocr-v4.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" onerror="console.warn('marked 加载失败，结果将以纯文本显示')"></script>
 </body>
 </html>
