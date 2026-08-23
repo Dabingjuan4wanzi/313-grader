@@ -527,6 +527,8 @@ let ocrLoading = false;
 async function getOcr(){
   if(ocrMod) return ocrMod;
   if(ocrLoading) throw new Error("busy");
+  /* Paddle.js 内部 Emscripten 代码需要全局 Module，否则在 ES 模块严格模式下报 "Module is not defined" */
+  if(typeof globalThis.Module === "undefined"){ globalThis.Module = {}; }
   ocrLoading = true;
   const urls = [
     "./ocr-lib.mjs",
