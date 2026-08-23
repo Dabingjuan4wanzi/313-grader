@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#185FA5">
+<title>313 论述题判卷助手</title>
+<style>
+:root{
+  --blue:#185FA5; --blue-dark:#0C447C; --blue-light:#E6F1FB;
+  --teal:#0F6E56; --teal-light:#E1F5EE;
+  --red:#A32D2D; --red-light:#FCEBEB;
+  --amber:#854F0B; --amber-light:#FAEEDA;
+  --ink:#22252A; --ink2:#5F5E5A; --ink3:#8a8a85;
+  --bg:#F4F6F8; --card:#FFFFFF; --line:#E3E6EA;
+  --radius:14px;
+  --shadow:0 1px 3px rgba(20,30,50,.08), 0 4px 16px rgba(20,30,50,.06);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0; padding:0;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+  background:var(--bg); color:var(--ink);
+  font-size:16px; line-height:1.6;
+  padding-bottom:60px;
+}
+.wrap{max-width:580px; margin:0 auto; padding:14px 14px 0;}
+header.top{
+  background:var(--blue); color:#fff; border-radius:var(--radius);
+  padding:16px 18px; display:flex; align-items:center; justify-content:space-between;
+  box-shadow:var(--shadow);
+}
+header.top h1{margin:0; font-size:19px; font-weight:600; letter-spacing:.5px;}
+header.top .sub{font-size:12.5px; opacity:.85; margin-top:2px;}
+.keybadge{background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.35); border-radius:999px; padding:5px 12px; font-size:12.5px; white-space:nowrap;}
+
+.card{
+  background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow);
+  padding:16px; margin-top:14px; border:1px solid var(--line);
+}
+.step-title{display:flex; align-items:center; gap:10px; margin:0 0 4px;}
+.step-num{
+  width:26px; height:26px; border-radius:50%; background:var(--blue-light); color:var(--blue-dark);
+  display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; flex:none;
+}
+.step-title b{font-size:16.5px; color:var(--blue-dark);}
+.step-desc{font-size:13px; color:var(--ink2); margin:0 0 12px 36px;}
+.card.disabled{opacity:.55; pointer-events:none;}
+
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  border:none; border-radius:12px; padding:13px 18px; font-size:16px; font-weight:500;
+  cursor:pointer; transition:opacity .15s, transform .05s; color:#fff; width:100%;
+}
+.btn:active{transform:scale(.98);}
+.btn:disabled{opacity:.5; cursor:not-allowed;}
+.btn-blue{background:var(--blue);}
+.btn-teal{background:var(--teal);}
+.btn-gray{background:#8a8a85;}
+.btn-outline{background:#fff; color:var(--blue-dark); border:1.5px solid var(--blue);}
+.btn-row{display:flex; gap:10px; margin-top:10px;}
+.btn-row .btn{flex:1;}
+.btn-sm{padding:9px 14px; font-size:14px; border-radius:10px; width:auto;}
+
+#previewArea{margin-top:12px; display:none;}
+#previewArea img{width:100%; border-radius:10px; border:1px solid var(--line); display:block; background:#fff;}
+#boxCanvasWrap{display:none; margin-top:12px;}
+#boxCanvas{width:100%; border-radius:10px; border:1px solid var(--line); background:#fff;}
+textarea{
+  width:100%; border:1.5px solid var(--line); border-radius:10px; padding:12px;
+  font-size:15.5px; line-height:1.7; font-family:inherit; resize:vertical; min-height:120px;
+  background:#fff; color:var(--ink); outline:none;
+}
+textarea:focus{border-color:var(--blue);}
+textarea[readonly]{background:#FAFAFA;}
+label.field{display:block; font-size:13.5px; color:var(--ink2); margin:12px 0 6px; font-weight:500;}
+.hint{font-size:12.5px; color:var(--ink3); margin-top:6px;}
+
+.status{
+  display:none; align-items:flex-start; gap:10px; border-radius:12px; padding:12px 14px;
+  font-size:14px; margin-top:12px; line-height:1.6;
+}
+.status.show{display:flex;}
+.status.info{background:var(--blue-light); color:var(--blue-dark);}
+.status.warn{background:var(--amber-light); color:var(--amber);}
+.status.err{background:var(--red-light); color:var(--red);}
+.status.ok{background:var(--teal-light); color:var(--teal);}
+.status .dot{
+  width:10px; height:10px; border-radius:50%; flex:none; margin-top:7px;
+}
+.status.info .dot{background:var(--blue);}
+.status.warn .dot{background:var(--amber);}
+.status.err .dot{background:var(--red);}
+.status.ok .dot{background:var(--teal);}
+.spin{display:inline-block; width:14px; height:14px; border:2.5px solid rgba(0,0,0,.15); border-top-color:currentColor; border-radius:50%; animation:spin .8s linear infinite; vertical-align:-2px; margin-right:8px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.keyrow{display:flex; gap:8px; align-items:center;}
+.keyrow input{flex:1; border:1.5px solid var(--line); border-radius:10px; padding:11px 12px; font-size:15px; font-family:inherit; outline:none;}
+.keyrow input:focus{border-color:var(--blue);}
+.seg{display:flex; gap:10px;}
+.seg-item{
+  flex:1; display:flex; align-items:center; justify-content:center; gap:7px;
+  border:1.5px solid var(--line); border-radius:12px; padding:12px 8px;
+  font-size:14.5px; cursor:pointer; background:#fff; color:var(--ink2); user-select:none;
+}
+.seg-item input{accent-color:var(--blue); margin:0; width:16px; height:16px;}
+.seg-item.checked{border-color:var(--blue); background:var(--blue-light); color:var(--blue-dark); font-weight:500;}
+#apiCfg input[type="url"],#apiCfg input[type="text"],#pstudioCfg input[type="url"],#pstudioCfg input[type="text"]{
+  width:100%; border:1.5px solid var(--line); border-radius:10px; padding:11px 12px;
+  font-size:15px; font-family:inherit; outline:none; background:#fff; color:var(--ink);
+}
+#apiCfg input:focus,#pstudioCfg input:focus{border-color:var(--blue);}
+
+#resultArea{display:none;}
+#resultHead{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+#resultHead h3{margin:0; font-size:16px; color:var(--blue-dark);}
+#resultDoc{
+  background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px;
+  font-size:15px; line-height:1.75; overflow-wrap:break-word; word-break:break-word;
+}
+#resultDoc h1,#resultDoc h2,#resultDoc h3{color:var(--blue-dark); margin:14px 0 8px; font-size:16.5px;}
+#resultDoc h1{font-size:18px; border-left:4px solid var(--blue); padding-left:10px;}
+#resultDoc p{margin:8px 0;}
+#resultDoc table{border-collapse:collapse; width:100%; margin:10px 0; font-size:13.5px;}
+#resultDoc th,#resultDoc td{border:1px solid #D9DEE4; padding:6px 8px; text-align:left;}
+#resultDoc th{background:var(--blue-light); color:var(--blue-dark);}
+#resultDoc ul,#resultDoc ol{margin:8px 0; padding-left:22px;}
+#resultDoc li{margin:4px 0;}
+#resultDoc blockquote{border-left:3px solid var(--teal); margin:10px 0; padding:4px 12px; background:var(--teal-light); color:var(--ink); border-radius:0 8px 8px 0;}
+#resultDoc code{background:#F1F3F5; border-radius:4px; padding:1px 5px; font-size:13.5px;}
+#resultDoc pre{background:#F1F3F5; border-radius:8px; padding:10px 12px; overflow-x:auto;}
+#resultDoc pre code{background:none; padding:0;}
+#resultDoc hr{border:none; border-top:1px solid var(--line); margin:14px 0;}
+#resultDoc strong{color:#111;}
+#resultDoc em{color:var(--ink2);}
+
+.hist-list{margin-top:8px;}
+.hist-item{border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:13.5px;}
+.hist-item .ht{display:flex; justify-content:space-between; gap:8px; color:var(--ink2); font-size:12.5px; margin-bottom:4px;}
+.hist-item .hq{font-weight:500; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+.hist-item .score{color:var(--teal); font-weight:600;}
+.hist-empty{color:var(--ink3); font-size:13px; text-align:center; padding:10px 0;}
+
+.foot{color:var(--ink3); font-size:12.5px; text-align:center; margin-top:18px; line-height:1.8;}
+.foot b{color:var(--ink2);}
+summary{font-size:14px; font-weight:500; color:var(--blue-dark); cursor:pointer; padding:4px 0;}
+details{margin-top:10px; font-size:13.5px; color:var(--ink2);}
+details .inner{background:#FAFBFC; border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:8px;}
+details li{margin:5px 0;}
+
+#toast{
+  position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(20px);
+  background:#22252A; color:#fff; padding:11px 20px; border-radius:999px; font-size:14px;
+  opacity:0; transition:all .25s; z-index:99; max-width:90%; text-align:center; pointer-events:none;
+}
+#toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div>
+    <h1>313 论述题判卷助手</h1>
+    <div class="sub">手写拍照 → 自动识别 → AI 按阅卷规则打分</div>
+  </div>
+  <div class="keybadge" id="keyBadge">未设置 Key</div>
+</header>
+
+<!-- 第 0 步：设置 -->
+<div class="card">
+  <p class="step-title" style="margin-bottom:8px;"><span class="step-num">0</span><b>设置（只需一次）</b></p>
+  <p class="step-desc" style="margin-bottom:10px;">包括判卷用的 DeepSeek 密钥，和图片文字识别方式。全部存在你手机本地。</p>
+
+  <label class="field">① DeepSeek 密钥（判卷用）</label>
+  <div class="keyrow">
+    <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off" style="flex:1;">
+    <button class="btn btn-blue btn-sm" id="btnSaveKey" style="flex:none;">保存</button>
+  </div>
+  <p class="hint" id="keyHint"></p>
+  <p class="hint" style="margin-top:4px;">没有密钥？打开 platform.deepseek.com → API Keys 创建一个，充值几块钱够用很久。</p>
+
+  <label class="field" style="margin-top:16px;">② 图片文字识别方式</label>
+  <div class="seg" id="ocrMode">
+    <label class="seg-item"><input type="radio" name="ocrMode" value="builtin">内置识别（免费）</label>
+    <label class="seg-item"><input type="radio" name="ocrMode" value="api">自定义 OCR API</label>
+    <label class="seg-item"><input type="radio" name="ocrMode" value="pstudio">AI Studio（异步）</label>
+  </div>
+  <p class="hint" style="margin-top:6px;"><b>内置识别</b>：免费、无需配置、图片不出手机，首次下载识别模型约 8MB。<b>自定义 API</b>：填你自己的 OCR 服务。<b>AI Studio</b>：用百度 PaddleOCR 云服务（识别质量高，需中转）。</p>
+
+  <div id="apiCfg" style="display:none; margin-top:12px; border-top:1px dashed var(--line); padding-top:12px;">
+    <label class="field">OCR API 地址</label>
+    <div class="keyrow"><input type="url" id="ocrApiUrl" placeholder="https://你的OCR服务地址" style="flex:1;"></div>
+    <label class="field">Token（选填，没有可留空）</label>
+    <div class="keyrow"><input type="text" id="ocrApiToken" placeholder="例如 sk-xxx 或留空" style="flex:1;"></div>
+    <p class="hint">你的 OCR 服务需支持：向该地址 POST 上传图片（字段名 file / image 均可），返回 JSON 文本结果（RapidOCR、PaddleOCR 服务、百度 OCR 等常见格式都能自动识别）。若你的服务需跨域授权，请确认已开启 CORS。</p>
+  </div>
+
+  <div id="pstudioCfg" style="display:none; margin-top:12px; border-top:1px dashed var(--line); padding-top:12px;">
+    <label class="field">AI Studio Token（必填）</label>
+    <div class="keyrow"><input type="text" id="psToken" placeholder="粘贴你的 AI Studio 令牌" style="flex:1;"></div>
+    <label class="field">中转地址（<b>可留空</b>，留空时自动探测可用中转）</label>
+    <div class="keyrow"><input type="url" id="psProxy" placeholder="留空即可，或填你自己的中转（如 http://电脑IP:8080/proxy?url=）" style="flex:1;"></div>
+    <p class="hint">AI Studio 服务端不允许网页直接访问，必须经中转。点「开始识别」时会自动从多个公共中转里挑能用的；找不到时会提示你。注意：使用公共中转时图片会经过该中转服务器。</p>
+  </div>
+</div>
+
+<!-- 第 1 步：上传手写答案 -->
+<div class="card" id="cardUpload">
+  <p class="step-title"><span class="step-num">1</span><b>上传手写答案</b></p>
+  <p class="step-desc">选择一张你的论述题手写答案图片，拍清楚、光线好一点，识别更准。答案有多页请分次上传处理。</p>
+  <div class="btn-row">
+    <label class="btn btn-blue" for="fileAlbum">从相册选择</label>
+    <label class="btn btn-outline" for="filePC">导入图片（电脑端）</label>
+  </div>
+  <input type="file" id="fileAlbum" accept="image/*" hidden>
+  <input type="file" id="filePC" accept="image/*" hidden>
+  <div id="previewArea"><img id="previewImg" alt="答案预览"></div>
+</div>
+
+<!-- 第 2 步：识别 -->
+<div class="card" id="cardOcr">
+  <p class="step-title"><span class="step-num">2</span><b>识别手写文字</b></p>
+  <p class="step-desc">按第 0 步选择的识别方式处理：内置识别在你手机本地跑（免费）；自定义 API 则发送到你自己的 OCR 服务。</p>
+  <button class="btn btn-blue" id="btnOcr">开始识别</button>
+  <div id="boxCanvasWrap"><canvas id="boxCanvas"></canvas><p class="hint">红色框内是按顺序识别出的文字，下面每一行对应一个框，可对照修改。</p></div>
+  <label class="field">识别结果（可直接修改，请逐行校对错字）</label>
+  <textarea id="ocrText" placeholder="识别出的文字会出现在这里，请核对修改…"></textarea>
+  <div class="status" id="ocrStatus"></div>
+</div>
+
+<!-- 第 3 步：填题目 -->
+<div class="card" id="cardQ">
+  <p class="step-title"><span class="step-num">3</span><b>填写题目</b></p>
+  <p class="step-desc">粘贴或输入本题的完整题目文字（如“论述 19 世纪中至 20 世纪初亚洲民族解放运动的三次高潮及意义”）。也可以拍照识别纸质题目。</p>
+  <textarea id="questionText" placeholder="在此粘贴或输入题目…" style="min-height:80px;"></textarea>
+  <div class="btn-row">
+    <label class="btn btn-outline btn-sm" for="fileQ" style="flex:none; margin-top:10px;">拍照识别题目</label>
+  </div>
+  <input type="file" id="fileQ" accept="image/*" hidden>
+</div>
+
+<!-- 第 4 步：判卷 -->
+<div class="card" id="cardGrade">
+  <p class="step-title"><span class="step-num">4</span><b>开始判卷</b></p>
+  <p class="step-desc">AI 将按你的 313 阅卷规则（40 分制）批改，输出：得分汇总、得分点覆盖对照、问题诊断、范文。每次约消耗几分钱余额。</p>
+  <button class="btn btn-teal" id="btnGrade" style="font-size:17px;">开始判卷</button>
+  <div class="status" id="gradeStatus"></div>
+  <div id="resultArea">
+    <div id="resultHead">
+      <h3>判卷报告</h3>
+      <button class="btn btn-sm btn-gray" id="btnCopy" style="width:auto; padding:6px 12px;">复制全文</button>
+    </div>
+    <div id="resultDoc"></div>
+    <div class="btn-row" style="margin-top:12px;">
+      <button class="btn btn-outline btn-sm" id="btnSaveHist" style="flex:1;">保存到历史记录</button>
+      <button class="btn btn-gray btn-sm" id="btnNew" style="flex:1;">重新判一份</button>
+    </div>
+  </div>
+</div>
+
+<!-- 历史记录 -->
+<div class="card">
+  <details>
+    <summary>历史判卷记录（存在本机）</summary>
+    <div class="inner">
+      <div class="hist-list" id="histList"></div>
+      <div style="text-align:right; margin-top:6px;"><button class="btn btn-sm btn-outline" id="btnClearHist">清空记录</button></div>
+    </div>
+  </details>
+</div>
+
+<div class="foot">
+  <b>使用说明</b><br>
+  1. 首次使用先填 DeepSeek 密钥，并选好识别方式（内置免费 / 自定义 API / AI Studio）。<br>
+  2. 上传手写答案图片 → 识别 → 逐行校对错字。<br>
+  3. 填题目 → 开始判卷，等约 1~3 分钟出报告。<br>
+  4. 内置识别最省事（免费、图片不出手机），推荐优先使用。<br>
+  5. <b>AI Studio（高质量手写识别）</b>：在设置里填你的 Token，中转地址留空，点识别时自动挑可用中转。若自动中转全部不通，可换网络重试，或到电脑运行 <code>start-grader.bat</code>、手机扫码进局域网页面用。<br>
+  你的图片、密钥、答案只存在本机（AI Studio 模式会把图片发到你的识别服务；使用公共中转时还会经过中转服务器）。
+</div>
+
+</div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ============ 阅卷规则（你的 Skill 全文，作为 AI 的系统提示词） ============ */
+const SKILL_PROMPT = [
+"# 313 历史论述题阅卷人（通用 Skill）",
+"",
+"## 一、角色",
+"你是严格、专业的**考研历史学 313 统考论述题阅卷人**。你接收\"题干 + 学生答案\"，依据统一的 40 分评分标准进行精细化批改，指出问题（内容、结构、逻辑、语言），并产出一篇示范性范文。你面向 313 统考全部四个模块：中国古代史、中国近现代史、世界古代中世纪史、世界近现代史。",
+"",
+"评价风格：**严格、客观、直接**，不写鼓励性话语，不粉饰，逐条指出具体问题及正确表述。",
+"",
+"## 二、评分标准（总分 40 分）",
+"总分 = **主体内容 30 分 + 论述组织 10 分**。",
+"",
+"**主体内容（30 分）**，按经验配比把握两档：",
+"- **内容·过程 ≈ 20 分**：知识点覆盖全面性（覆盖该题核心知识点、无重大遗漏、要点齐全）+ 史实准确性（时间、地点、人物、事件、概念精准，无事实性错误，无时段错置）。",
+"- **背景·影响 ≈ 10 分**：论述深度——不止\"是什么\"，要析\"为什么\"\"怎么样\"\"影响何在\"，点明本质、深层原因、长远影响。",
+"",
+"**论述组织（10 分）**，四点各 2.5 分，合成后归四等：",
+"| 子项 | 分值 | 要求 |",
+"|------|------|------|",
+"| 史实准确 | 2.5 | 表达要素精确，史实与论点直接映射，时序服从因果 |",
+"| 史论结合 | 2.5 | 论从史出，有分析评价，非单纯罗列 |",
+"| 逻辑清楚 | 2.5 | 结构清晰、层次分明、因果链紧密，按时间/发展/逻辑顺序 |",
+"| 文字流畅 | 2.5 | 严谨学术化语言，无口语化、空泛、缩略语、病句 |",
+"",
+"四等划分：第一等 9–10 分 / 第二等 6–8 分 / 第三等 3–5 分 / 第四等 0–2 分。",
+"",
+"**不重复扣原则**：同一处错误只在最贴切的一层扣一次，互补不重复。",
+"",
+"## 三、判分执行机制（按步骤执行）",
+"**Step 0 定基准**：1. 识别设问结构（见第四节）→ 确定分点框架。2. 列出期望得分点（有官方答案则直接用其分点；否则按题目维度推导）。**采分点粒度通常 5 分/点**，论述题一般 6 点或 3 段（少量 5 点，中国近现代史可 >6 点）。3. 标定题限时段（见第五节）。",
+"**Step 1 逐点核对 → 内容·过程（20 分）**：对每个期望得分点按覆盖度计分：观点正确 + 有具体史实（时间/人名/制度/引文）4–5 分；观点正确但史实空泛（无具体要素）2.5–3 分；观点或史实有误（含定性错误、概念混用）1–2 分；未覆盖 / 写了无关内容 0 分。",
+"**Step 2 史实硬错扣分**（只在 Step 1 未体现的错误上叠加，避免双重扣分）：方向性错误（如把革命对象写成建立对象）、时段错置（题限外史实作成因/内容）、张冠李戴每处 −2 分；单处年代 / 人名 / 事件 / 制度细节错误每处 −1 分；关键术语错写每处 −0.5～−1 分；超出题限范围堆砌视同覆盖偏差。轻微笔误、错别字（不影响识别的同音字）忽略。",
+"**Step 3 论述深度 → 背景·影响（10 分）**：双段式题目看影响段是否**分层**（积极/消极；对本国/对世界/对后世）、**具体**（有史实支撑）、含**历史定位**（\"为…奠定基础\"\"是…的先声\"）。未写影响段或纯套话 0–3 分；有影响段但空泛重复未分层 4–6 分；分层 + 具体 + 历史定位 7–10 分。单段式题目看点内是否\"观点 → 史实 → 分析\"齐备；纯罗列史实无分析，深度上限 6 分。原因类/认同类缺\"个性根因/特性\"者：深度上限 6 分。",
+"**Step 4 论述组织（10 分）**：按第二节四点各 2.5 分评定，合成归四等。",
+"**Step 5 汇总**：总分 = 内容·过程 + 背景·影响 + 论述组织，上限 40。输出【得分点覆盖对照】表（逐点核对）。",
+"",
+"## 四、拆题与出题规律（313 论述题设问模式）",
+"识别设问结构后再定分点框架：",
+"1. **双段式（最常见）**：\"过程/内容/特点/原因/背景 + 影响/意义\"。前段约 20 分、后段约 10 分。",
+"2. **单段式**：机理类（\"九品中正制如何成为维护高门大族利益的工具\"）、原因类（\"中世纪德国未能统一的原因\"）、表现类（\"十六国政权的华夏认同\"）——通常 6 点 ×5 分 = 30 分。",
+"3. **异同类**：先异后同，各约 15 分，每点须带具体国家/事例。",
+"4. **演变类**：按时间阶段切分（3–6 阶段），每阶段 = 内容 + 影响。",
+"**\"特点\"类按维度拆分**（政治/经济/文化/军事，每维度一点）；**\"演变\"类按时间阶段拆分**；**\"异同\"类先异后同**。",
+"",
+"## 五、必查要点（按题型）",
+"1. **时段硬约束（最高优先级）**：所引史实必须落在题限时段内。常用基准：中世纪 = 476 年（西罗马灭亡）— 1453 年（君士坦丁堡陷落）；三国 220–280、西晋 265–316、东晋 317–420、十六国 304–439、南北朝 420–589（北魏 386–534）。",
+"2. **脉络/阶段类（\"三次高潮\"\"几次浪潮\"\"发展阶段\"）**：必须说明各阶段、各浪潮之间的**内在关系**（承启、因果、力量与目标的升级），不得孤立罗列。**划分须按\"时间断限 + 内容特点\"双标准**。",
+"3. **意义/影响类**：先判断各事件意义**相同还是不同**——相同则合并综述，不同则分列；再分层组织（对本国 / 对地区 / 对世界）。官方范答常将意义**融入各点叙述**（每点末尾一句具体意义），不单列亦可；须具体、不重复，禁止套话堆砌。",
+"4. **特性意识（认同/比较/原因类必查）**：须点明**区别于他者的本质特征/个性根因**。认同类须落足于制度、正统、族源等具体载体。原因类须区分**个性根因**（本题特有）与**共性因素**（多文明共有）——共性因素仅给基础分，重点评分落在个性根因。",
+"5. **内容纪律**：只评与题目直接相关的内容；冗余/无效堆砌扣分；注意是否超出约 8 点答题空间。",
+"6. **史料引用来源意识**：学生引用的史实/原话须准确可考，臆造/误记史料照扣分。",
+"",
+"## 六、史实核验原则",
+"- 事实断言（年代、人物、事件、制度、引文）以**教材和公认史学定论**为最高依据；禁止凭模型记忆臆断。",
+"- 考生答案出现明显硬错（张冠李戴、时代错置、方向性错误）时，必须明确指出并给出**正确表述**。",
+"- 若题目为历年真题且你掌握官方/标准答案，以其采分点为判分基准（2021–2025 论述题均为每年四模块各 1 题、采分点 5 分/点、设问以双段式为主）。",
+"- 范文中的史实同样须准确；引用具体史料时可标注出处，标不出精确页码时标注章节或书名即可，不得虚构出处。",
+"",
+"## 七、范文规范（森海风格 = 框架式精炼）",
+"范文不超过 800 字，结构为**引言（概述）— 主体（分点论述）— 结论（总结升华）**，使用学术化语言：",
+"- **引言**：一句话概述时代背景 + 主题 + 总判断。",
+"- **主体分点**：每点 = 观点句（采分点标题）→ 具体史实（时间/人名/制度/引文点到为止）→ 分析（影响/意义/本质）→ 点内小结。按本题设问结构组织，采分点粒度 5 分/点。",
+"- **结论**：总结升华，回扣主题 + 历史定位（\"为…奠定基础\"\"是…的先声\"）。",
+"- **精炼要求**：每点 3–5 句话，核心史实点到为止，**不堆砌教材原文细节**（年代/人名/原话只在必要时出现）；目标是骨架准确、关键不漏、表述规范。",
+"- 尽量沿用学生原文的合理框架修改，而非另起炉灶。",
+"",
+"## 八、输出格式（严格按此结构）",
+"【得分汇总】",
+"主体内容（30 分）",
+"  · 内容·过程（覆盖+史实）：x / 20",
+"  · 背景·影响（论述深度）：  x / 10",
+"论述组织（10 分）",
+"  · 史实准确：x / 2.5  · 史论结合：x / 2.5",
+"  · 逻辑清楚：x / 2.5  · 文字流畅：x / 2.5",
+"  · 组织等级：第 x 等",
+"总分：x / 40",
+"",
+"【得分点覆盖对照】",
+"| 得分点 | 分值 | 学生覆盖情况 | 得分 |",
+"|--------|------|--------------|------|",
+"",
+"【问题诊断】（直接、客观、逐条）",
+"1. 史实错误：……（指出具体错处及正确表述；含时段错置）",
+"2. 覆盖遗漏：……（应补未补的个性化知识点）",
+"3. 深度不足：……（仅述\"是什么\"，未析\"为什么/影响\"）",
+"4. 逻辑/结构：……（断裂、跳跃、层次不清；或生硬套模板）",
+"5. 特性缺失：……（认同/比较/原因类未点明本质特征/个性根因）",
+"6. 语言：……（口语化、空泛、关键术语误用、超出答题空间）",
+"",
+"【范文】（≤800 字，引言—主体—结论）",
+"",
+"## 九、使用示例",
+"发送格式：题目：…… 我的答案：……",
+"输出即得：得分汇总（40 分制）+ 得分点覆盖对照 + 问题诊断 + 范文。"
+].join("\n");
+
+/* ============ 工具函数 ============ */
+const $ = id => document.getElementById(id);
+let toastTimer = null;
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove("show"), 2600);
+}
+function setStatus(id, type, html){
+  const el = $(id);
+  el.className = "status show " + type;
+  el.innerHTML = '<span class="dot"></span><span>' + html + '</span>';
+}
+function clearStatus(id){ $(id).className = "status"; }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+/* fetch 失败时给出看得懂的原因 */
+function friendlyFetchError(e){
+  const m = (e && e.message) ? e.message : "";
+  if(/fetch/i.test(m) || /Failed to fetch/i.test(m)){
+    return "浏览器无法连接目标服务（Failed to fetch）。常见原因：① 地址不是 https:// 开头；② 目标服务不允许网页跨域访问（如 AI Studio，必须填中转地址）；③ 当前是加密页面但中转填的是 http:// 地址（会被浏览器拦截）；④ 网络不通。请检查设置后重试。";
+  }
+  return m;
+}
+
+/* 把界面输入框里的值立刻写入本地存储（识别/判卷前调用，避免填完忘保存） */
+function flushConfigs(){
+  const c = getOcrCfg();
+  c.url = $("ocrApiUrl").value.trim();
+  c.token = $("ocrApiToken").value.trim();
+  c.psToken = $("psToken").value.trim();
+  c.psProxy = $("psProxy").value.trim();
+  saveOcrCfg(c);
+  const k = $("apiKey").value.trim();
+  if(k && k.startsWith("sk-")){ localStorage.setItem("ds_key", k); }
+  refreshKeyBadge();
+}
+
+function getKey(){ return localStorage.getItem("ds_key") || ""; }
+function refreshKeyBadge(){
+  const k = getKey();
+  $("keyBadge").textContent = k ? "Key 已设置 ✓" : "未设置 Key";
+  $("keyHint").textContent = k ? "密钥已保存（仅存本机浏览器）。刷新页面后输入框仍会显示，可随时覆盖修改。" : "";
+}
+refreshKeyBadge();
+$("apiKey").value = getKey();   /* 刷新后回填，输入框不丢 */
+
+$("btnSaveKey").addEventListener("click", ()=>{
+  flushConfigs();
+  const v = getKey();
+  if(!v){ setStatus("ocrStatus", "err", "请先粘贴 DeepSeek 密钥（以 sk- 开头）。"); return; }
+  toast("密钥已保存 ✓");
+});
+
+/* ============ OCR 识别方式配置（内置 / 自定义 API / AI Studio） ============ */
+function getOcrCfg(){ try{ return JSON.parse(localStorage.getItem("ocr_cfg") || "{}"); }catch(e){ return {}; } }
+function saveOcrCfg(c){ localStorage.setItem("ocr_cfg", JSON.stringify(c)); }
+function currentMode(c){
+  c = c || getOcrCfg();
+  if(c.mode === "pstudio" || c.mode === "api" || c.mode === "builtin") return c.mode;
+  return c.useApi ? "api" : "builtin";
+}
+function renderOcrCfg(){
+  const c = getOcrCfg();
+  const mode = currentMode(c);
+  document.querySelectorAll('input[name="ocrMode"]').forEach(r=>{
+    r.checked = (r.value === mode);
+    r.closest(".seg-item").classList.toggle("checked", r.checked);
+  });
+  $("ocrApiUrl").value = c.url || "";
+  $("ocrApiToken").value = c.token || "";
+  $("apiCfg").style.display = mode === "api" ? "block" : "none";
+  $("psToken").value = c.psToken || "";
+  $("psProxy").value = c.psProxy || "";
+  $("pstudioCfg").style.display = mode === "pstudio" ? "block" : "none";
+}
+document.querySelectorAll('input[name="ocrMode"]').forEach(r=>{
+  r.addEventListener("change", ()=>{
+    const c = getOcrCfg(); c.mode = r.value; saveOcrCfg(c); renderOcrCfg();
+  });
+});
+$("apiKey").addEventListener("input", ()=>{ const k = $("apiKey").value.trim(); if(k.startsWith("sk-")) localStorage.setItem("ds_key", k); refreshKeyBadge(); });
+$("ocrApiUrl").addEventListener("input", ()=>{ const c = getOcrCfg(); c.url = $("ocrApiUrl").value.trim(); saveOcrCfg(c); });
+$("ocrApiToken").addEventListener("input", ()=>{ const c = getOcrCfg(); c.token = $("ocrApiToken").value.trim(); saveOcrCfg(c); });
+$("psToken").addEventListener("input", ()=>{ const c = getOcrCfg(); c.psToken = $("psToken").value.trim(); saveOcrCfg(c); });
+$("psProxy").addEventListener("input", ()=>{ const c = getOcrCfg(); c.psProxy = $("psProxy").value.trim(); saveOcrCfg(c); });
+renderOcrCfg();
+
+/* ============ 图片上传与压缩 ============ */
+let currentImg = null;      // 压缩后的 Image
+let currentCanvas = null;   // 压缩后的 canvas
+function bindFile(input, fn){
+  input.addEventListener("change", ()=>{
+    const f = input.files && input.files[0];
+    if(f) fn(f);
+    input.value = "";
+  });
+}
+bindFile($("fileAlbum"), handleImage);
+bindFile($("filePC"), handleImage);
+
+function handleImage(file){
+  if(!file.type.startsWith("image/")){ toast("请选择图片文件"); return; }
+  toast("正在压缩图片…");
+  compressImage(file).then(({canvas, image, w, h})=>{
+    currentCanvas = canvas; currentImg = image;
+    $("previewImg").src = canvas.toDataURL("image/jpeg", 0.85);
+    $("previewArea").style.display = "block";
+    $("boxCanvasWrap").style.display = "none";
+    $("ocrText").value = "";
+    clearStatus("ocrStatus");
+    toast("图片已就绪，点「开始识别」");
+  }).catch(()=>{ toast("图片读取失败，请重试"); });
+}
+
+function compressImage(file){
+  return new Promise((resolve, reject)=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      const maxW = 1200;
+      const scale = Math.min(1, maxW / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0,0,w,h);
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      const out = new Image();
+      out.onload = ()=>resolve({canvas:c, image:out, w, h});
+      out.onerror = reject;
+      out.src = c.toDataURL("image/jpeg", 0.7);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("load fail")); };
+    img.src = url;
+  });
+}
+
+/* ============ OCR（PaddleOCR 浏览器版） ============ */
+let ocrMod = null;
+let ocrLoading = false;
+async function getOcr(){
+  if(ocrMod) return ocrMod;
+  if(ocrLoading) throw new Error("busy");
+  ocrLoading = true;
+  const urls = [
+    "./ocr-lib.mjs",
+    "https://cdn.jsdelivr.net/npm/@paddlejs-models/ocr@1.1.2/+esm"
+  ];
+  let lastErr = null;
+  for(const u of urls){
+    try{ ocrMod = await import(u); break; }
+    catch(e){ lastErr = e; }
+  }
+  ocrLoading = false;
+  if(!ocrMod) throw lastErr || new Error("OCR 库加载失败");
+  return ocrMod;
+}
+
+let ocrBusy = false;
+$("btnOcr").addEventListener("click", async ()=>{
+  if(!currentCanvas){ setStatus("ocrStatus", "warn", "请先在上一步上传手写答案图片。"); return; }
+  if(ocrBusy) return;
+  flushConfigs();
+  ocrBusy = true;
+  $("btnOcr").disabled = true;
+  try{
+    const mode = currentMode();
+    if(mode === "api" && getOcrCfg().url){
+      await recognizeWithApi();
+    }else if(mode === "pstudio"){
+      await recognizePstudio();
+    }else{
+      await recognizeBuiltin();
+    }
+  }catch(e){
+    console.error(e);
+    const m = friendlyFetchError(e);
+    setStatus("ocrStatus", "err", "识别失败：" + m + "<br>手机端最简单的方式：第 0 步把识别方式切成「内置识别（免费）」再试。");
+  }finally{
+    ocrBusy = false;
+    $("btnOcr").disabled = false;
+  }
+});
+
+async function recognizeBuiltin(){
+  let ocr;
+  setStatus("ocrStatus", "info", '<span class="spin"></span>第 1 步/共 3 步：加载识别引擎…');
+  try{
+    ocr = await getOcr();
+  }catch(e){
+    throw new Error("内置识别引擎加载失败（" + ((e && e.message) || "未知原因") + "）。建议：① 确认网络通畅；② 用手机自带浏览器（Chrome/Edge/UC），不要用微信内置浏览器；③ 刷新页面重试。");
+  }
+  setStatus("ocrStatus", "info", '<span class="spin"></span>第 2 步/共 3 步：下载识别模型（约 8MB，首次较慢，请耐心等待）…');
+  try{
+    await ocr.init();
+  }catch(e){
+    throw new Error("识别模型初始化失败（" + ((e && e.message) || "未知原因") + "）。可能原因：模型下载被网络拦截，或浏览器不支持 WebGL。建议：① 换网络（如关 WiFi 用流量）重试；② 换手机自带浏览器；③ 或在设置里改用 AI Studio 模式。");
+  }
+  setStatus("ocrStatus", "info", '<span class="spin"></span>第 3 步/共 3 步：正在识别文字…');
+  const res = await ocr.recognize(currentImg);
+  window.__ocrPoints = (res && res.points) ? res.points : [];
+  renderBoxes();
+  let text = (res && res.text) ? res.text : "";
+  text = text.replace(/\r/g, "").split("\n").map(l=>l.trim()).join("\n").replace(/\n{3,}/g,"\n\n");
+  $("ocrText").value = text;
+  $("boxCanvasWrap").style.display = "block";
+  if(!text.trim()){
+    setStatus("ocrStatus", "warn", "没有识别到文字。可能是图片太模糊，请重新拍一张更清晰、光线均匀的照片。");
+  }else{
+    const lines = text.split("\n").filter(l=>l.trim()).length;
+    setStatus("ocrStatus", "ok", "识别完成，共 " + lines + " 行。请对照下方图片逐行校对错字，改完后再进入下一步。");
+    toast("识别完成，请校对");
+  }
+}
+
+async function recognizeWithApi(){
+  setStatus("ocrStatus", "info", '<span class="spin"></span>正在上传图片到你的 OCR 服务…');
+  const cfg = getOcrCfg();
+  const blob = await new Promise(res=>currentCanvas.toBlob(res, "image/jpeg", 0.92));
+  const fd = new FormData();
+  fd.append("file", blob, "answer.jpg");
+  fd.append("image", blob, "answer.jpg");
+  fd.append("files", blob, "answer.jpg");
+  const headers = {};
+  if(cfg.token) headers["Authorization"] = "Bearer " + cfg.token;
+  const resp = await fetch(cfg.url, { method: "POST", headers, body: fd });
+  if(!resp.ok){
+    if(resp.status === 0 || resp.type === "opaque") throw new Error("无法连接你的 OCR 服务（可能未开启跨域 CORS）");
+    throw new Error("OCR 服务返回错误 " + resp.status);
+  }
+  const j = await resp.json();
+  const text = extractOcrText(j);
+  $("ocrText").value = text;
+  $("boxCanvasWrap").style.display = "none";
+  if(!text.trim()){
+    setStatus("ocrStatus", "warn", "没有识别到文字。请检查图片清晰度，或确认 OCR 服务返回的是 JSON 文本格式。");
+  }else{
+    const lines = text.split("\n").filter(l=>l.trim()).length;
+    setStatus("ocrStatus", "ok", "识别完成（自定义 API），共 " + lines + " 行。请逐行校对错字，改完后再进入下一步。");
+    toast("识别完成，请校对");
+  }
+}
+
+function extractOcrText(json){
+  const lines = [];
+  const push = v => { if(typeof v === "string" && v.trim()) lines.push(v.trim()); };
+  const walk = (o, d) => {
+    if(o == null || d > 7) return;
+    if(Array.isArray(o)){
+      for(const it of o){
+        if(typeof it === "string"){ push(it); }
+        else if(it && typeof it === "object"){
+          for(const k of ["text","words","rec_text","content","value"]){
+            if(typeof it[k] === "string"){ push(it[k]); break; }
+          }
+          if(!it.text && !it.words && !it.rec_text && !it.content && !it.value) walk(it, d+1);
+        }
+      }
+    }else if(typeof o === "object"){
+      for(const k of ["rec_texts","texts","text","words","content","ocr_text","result_text"]){
+        const v = o[k];
+        if(typeof v === "string") push(v);
+        else if(Array.isArray(v)) v.forEach(x=>{ if(typeof x === "string") push(x); });
+      }
+      if(Array.isArray(o.words_result)) o.words_result.forEach(w=>{ if(w && typeof w.words === "string") push(w.words); });
+      for(const k of ["result","data","res","body","output"]){
+        if(o[k] && typeof o[k] === "object") walk(o[k], d+1);
+      }
+    }
+  };
+  walk(json, 0);
+  return lines.join("\n");
+}
+
+/* ============ PaddleOCR AI Studio（异步作业，需中转） ============ */
+function withProxy(proxy, u){
+  if(!proxy) return u;
+  const p = proxy.trim();
+  if(p.includes("?url=")) return p.replace(/url=[^&]*/, "url=" + encodeURIComponent(u));
+  if(p.includes("?")) return p + "&url=" + encodeURIComponent(u);
+  return p + "?url=" + encodeURIComponent(u);
+}
+function stripHtml(s){
+  return String(s)
+    .replace(/<img[^>]*>/g, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
+    .replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+async function recognizePstudio(){
+  flushConfigs();
+  const cfg = getOcrCfg();
+  const token = (cfg.psToken || "").trim();
+  const manualProxy = (cfg.psProxy || "").trim();
+  const base = "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs";
+  if(!token){ throw new Error("请先在第 0 步填写 AI Studio Token。"); }
+  if(manualProxy && /^http:\/\//.test(manualProxy) && location.protocol === "https:"){
+    throw new Error("当前是加密页面（https），浏览器会拦截 http 开头的本地中转地址。请把中转地址留空，使用自动中转，或在电脑本地页面使用。");
+  }
+  let proxies = [];
+  if(manualProxy){
+    proxies = [manualProxy];
+  }else{
+    setStatus("ocrStatus", "info", '<span class="spin"></span>正在准备识别通道…');
+    /* 优先用"当前页面自身"作为中转：电脑中转或公网隧道页面打开时，本页自带 /proxy，零配置 */
+    const selfProxy = location.origin + "/proxy?url=";
+    const selfOk = await probeProxy(selfProxy);
+    if(selfOk) proxies.push(selfProxy);
+    const found = await findWorkingProxies();
+    proxies = proxies.concat(found);
+    if(!proxies.length){
+      throw new Error("没有可用中转。请到电脑上双击 start-grader.bat，手机扫码进入公网页面后再用 AI Studio（或暂时用内置识别）。");
+    }
+  }
+  setStatus("ocrStatus", "info", '<span class="spin"></span>正在提交识别任务…');
+  const blob = await new Promise(res=>currentCanvas.toBlob(res, "image/jpeg", 0.7));
+  const fd = new FormData();
+  fd.append("file", blob, "answer.jpg");
+  fd.append("model", "PaddleOCR-VL-1.6");
+  fd.append("optionalPayload", JSON.stringify({useDocOrientationClassify:false, useDocUnwarping:false, useChartRecognition:false}));
+  const h = { "Authorization": "bearer " + token };
+  const { resp: jr0, proxy: usedProxy } = await submitViaProxies(proxies, base, h, fd);
+  if(!jr0.ok) throw new Error("提交任务失败（HTTP " + jr0.status + "）。请检查 Token。");
+  const j0 = await jr0.json();
+  const jobId = j0 && j0.data && j0.data.jobId;
+  if(!jobId) throw new Error("服务未返回任务编号，返回内容：" + JSON.stringify(j0).slice(0,120));
+  let jsonUrl = "", errMsg = "", curProxy = usedProxy;
+  for(let i = 0; i < 120; i++){
+    await new Promise(r=>setTimeout(r, 3000));
+    let jj = null;
+    try{
+      jj = await pollViaProxies(proxies, base + "/" + jobId, h, curProxy);
+    }catch(e){
+      throw new Error("查询任务失败：" + friendlyFetchError(e));
+    }
+    if(jj.usedProxy) curProxy = jj.usedProxy;
+    const st = jj.data && jj.data.state;
+    if(st === "done"){ jsonUrl = jj.data.resultUrl && jj.data.resultUrl.jsonUrl; break; }
+    if(st === "failed"){ errMsg = (jj.data && jj.data.errorMsg) || "识别任务失败"; break; }
+    if(i % 2 === 0) setStatus("ocrStatus", "info", '<span class="spin"></span>识别中…（' + (st || "…") + "）");
+  }
+  if(errMsg) throw new Error("识别失败：" + errMsg);
+  if(!jsonUrl) throw new Error("识别超时（约 6 分钟），请重试。");
+  setStatus("ocrStatus", "info", '<span class="spin"></span>正在整理识别结果…');
+  const jr = await fetch(jsonUrl);
+  if(!jr.ok) throw new Error("结果下载失败（HTTP " + jr.status + "）");
+  const txt = await jr.text();
+  const parts = [];
+  for(const line of txt.trim().split("\n")){
+    if(!line.trim()) continue;
+    try{
+      const obj = JSON.parse(line);
+      const res = obj && obj.result;
+      if(res && Array.isArray(res.layoutParsingResults)){
+        for(const item of res.layoutParsingResults){
+          if(item && item.markdown && item.markdown.text) parts.push(stripHtml(item.markdown.text));
+        }
+      }
+    }catch(e){}
+  }
+  const out = parts.join("\n\n");
+  $("ocrText").value = out;
+  $("boxCanvasWrap").style.display = "none";
+  if(!out.trim()){
+    setStatus("ocrStatus", "warn", "没有识别到文字。请检查图片清晰度，或确认 Token 对应的服务可用。");
+  }else{
+    const ln = out.split("\n").filter(l=>l.trim()).length;
+    setStatus("ocrStatus", "ok", "识别完成（AI Studio），共 " + ln + " 行。请逐行校对错字，改完后再进入下一步。");
+    toast("识别完成，请校对");
+  }
+}
+
+/* 公共中转候选（自动探测可用的；不同网络下可用性不同，流量网络往往更宽松） */
+const PROXY_LIST = [
+  "https://corsproxy.io/?url=",
+  "https://cors.raghu.workers.dev/?url=",
+  "https://proxy.killcors.com?url=",
+  "https://api.allorigins.win/raw?url=",
+  "https://cors.eu.org/?url=",
+  "https://test.cors.workers.dev/?url=",
+  "https://corsproxy.org/?url="
+];
+async function probeProxy(p){
+  try{
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), 6000);
+    const r = await fetch(withProxy(p, "https://www.baidu.com"), { method:"GET", mode:"cors", signal:ctrl.signal });
+    clearTimeout(timer);
+    return (r.ok || r.status === 301 || r.status === 302);
+  }catch(e){ return false; }
+}
+async function findWorkingProxies(){
+  const ok = [];
+  for(const p of PROXY_LIST){
+    if(await probeProxy(p)) ok.push(p);
+  }
+  return ok;
+}
+async function submitViaProxies(proxies, url, headers, fd){
+  let lastErr = null;
+  for(const p of proxies){
+    try{
+      const ctrl = new AbortController();
+      const timer = setTimeout(()=>ctrl.abort(), 45000);
+      const r = await fetch(withProxy(p, url), { method:"POST", headers, body:fd, signal:ctrl.signal });
+      clearTimeout(timer);
+      if(r.ok) return { resp:r, proxy:p };
+      lastErr = new Error("HTTP " + r.status);
+    }catch(e){ lastErr = e; }
+  }
+  throw lastErr || new Error("所有中转通道均不可用");
+}
+async function pollViaProxies(proxies, url, headers, preferred){
+  let lastErr = null;
+  const order = preferred ? [preferred].concat(proxies.filter(p=>p!==preferred)) : proxies;
+  for(const p of order){
+    try{
+      const ctrl = new AbortController();
+      const timer = setTimeout(()=>ctrl.abort(), 15000);
+      const r = await fetch(withProxy(p, url), { headers, signal:ctrl.signal });
+      clearTimeout(timer);
+      if(r.ok) return { data: (await r.json()).data, usedProxy: p };
+      lastErr = new Error("HTTP " + r.status);
+    }catch(e){ lastErr = e; }
+  }
+  throw lastErr || new Error("轮询失败");
+}
+
+function renderBoxes(){
+  const canvas = $("boxCanvas");
+  canvas.width = currentCanvas.width; canvas.height = currentCanvas.height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(currentCanvas, 0, 0);
+  const pts = window.__ocrPoints || [];
+  ctx.strokeStyle = "#E24B4A"; ctx.lineWidth = 2;
+  ctx.fillStyle = "rgba(226,75,74,0.06)";
+  ctx.font = "13px sans-serif";
+  pts.forEach((poly, i)=>{
+    ctx.beginPath();
+    ctx.moveTo(poly[0][0], poly[0][1]);
+    for(let k=1;k<poly.length;k++) ctx.lineTo(poly[k][0], poly[k][1]);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    const x = poly[0][0], y = poly[0][1] - 4;
+    ctx.fillStyle = "#A32D2D";
+    ctx.fillRect(x - 2, y - 15, 18, 18);
+    ctx.fillStyle = "#fff"; ctx.fillText(String(i + 1), x + 2, y - 1);
+    ctx.fillStyle = "rgba(226,75,74,0.06)";
+  });
+}
+
+/* 题目拍照识别 */
+bindFile($("fileQ"), async (file)=>{
+  if(ocrBusy){ toast("识别引擎正忙，请稍候"); return; }
+  ocrBusy = true;
+  try{
+    const {canvas, image} = await compressImage(file);
+    setStatus("gradeStatus", "info", '<span class="spin"></span>正在加载识别引擎…');
+    const ocr = await getOcr();
+    setStatus("gradeStatus", "info", '<span class="spin"></span>正在识别题目…');
+    await ocr.init();
+    const res = await ocr.recognize(image);
+    const text = (res && res.text) ? res.text.replace(/\r/g,"") : "";
+    if(!text.trim()){ setStatus("gradeStatus", "warn", "没有识别到题目文字，请重拍或手动输入。"); }
+    else{
+      $("questionText").value = text;
+      setStatus("gradeStatus", "ok", "题目已识别填入，请核对修改。");
+      toast("题目已识别");
+    }
+  }catch(e){
+    setStatus("gradeStatus", "err", "题目识别失败：" + friendlyFetchError(e) + "。也可以手动输入题目。");
+  }finally{
+    ocrBusy = false;
+  }
+});
+
+/* ============ 判卷（DeepSeek） ============ */
+let grading = false;
+let lastResultText = "";
+$("btnGrade").addEventListener("click", async ()=>{
+  if(grading) return;
+  flushConfigs();
+  const key = getKey();
+  if(!key){ setStatus("gradeStatus", "err", "请先在第 0 步填写并保存 DeepSeek 密钥。"); window.scrollTo({top:0, behavior:"smooth"}); return; }
+  const answer = $("ocrText").value.trim();
+  const question = $("questionText").value.trim();
+  if(!answer){ setStatus("gradeStatus", "warn", "答案不能为空。请先上传手写图片并完成识别校对。"); return; }
+  if(!question){ setStatus("gradeStatus", "warn", "请填写题目。"); return; }
+  grading = true;
+  $("btnGrade").disabled = true;
+  $("resultArea").style.display = "block";
+  $("resultDoc").innerHTML = '<span class="spin" style="border-top-color:#185FA5;"></span>判卷中，AI 正在逐点核对得分点…约 1~3 分钟';
+  lastResultText = "";
+  const userMsg = "题目：" + question + "\n\n我的答案：\n" + answer;
+  try{
+    const resp = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [
+          { role: "system", content: SKILL_PROMPT },
+          { role: "user", content: userMsg }
+        ],
+        stream: true,
+        temperature: 0.3,
+        max_tokens: 8000
+      })
+    });
+    if(!resp.ok){
+      let msg = "HTTP " + resp.status;
+      try{ const j = await resp.json(); msg = (j.error && j.error.message) || msg; }catch(e){}
+      if(resp.status === 401) msg = "密钥无效（401）。请检查是否复制完整、是否有空格。";
+      if(resp.status === 402) msg = "DeepSeek 余额不足（402），请到 platform.deepseek.com 充值。";
+      if(resp.status === 429) msg = "请求过于频繁（429），请稍等一分钟再试。";
+      throw new Error(msg);
+    }
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder("utf-8");
+    let buf = "", full = "";
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      buf += dec.decode(value, {stream:true});
+      const lines = buf.split("\n");
+      buf = lines.pop();
+      for(const line of lines){
+        const t = line.trim();
+        if(!t.startsWith("data:")) continue;
+        const data = t.slice(5).trim();
+        if(data === "[DONE]") continue;
+        try{
+          const j = JSON.parse(data);
+          const delta = j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content;
+          if(delta){ full += delta; renderMd(full); }
+        }catch(e){}
+      }
+    }
+    lastResultText = full;
+    renderMd(full);
+    if(!full.trim()){
+      setStatus("gradeStatus", "warn", "AI 没有返回内容，请重试。");
+    }else{
+      setStatus("gradeStatus", "ok", "判卷完成。可复制全文或保存到历史记录。");
+      toast("判卷完成 ✓");
+    }
+  }catch(e){
+    console.error(e);
+    setStatus("gradeStatus", "err", "判卷失败：" + friendlyFetchError(e) + "（检查网络或密钥）");
+  }finally{
+    grading = false;
+    $("btnGrade").disabled = false;
+  }
+});
+
+function renderMd(text){
+  if(window.marked){
+    try{
+      $("resultDoc").innerHTML = window.marked.parse(text);
+      return;
+    }catch(e){}
+  }
+  $("resultDoc").innerHTML = '<pre style="white-space:pre-wrap; margin:0;">' + esc(text) + "</pre>";
+}
+
+$("btnCopy").addEventListener("click", ()=>{
+  if(!lastResultText){ toast("还没有判卷结果"); return; }
+  const copy = ()=>{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(lastResultText).then(()=>toast("已复制到剪贴板 ✓"), ()=>fallbackCopy());
+    }else fallbackCopy();
+  };
+  const fallbackCopy = ()=>{
+    const ta = document.createElement("textarea");
+    ta.value = lastResultText; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); toast("已复制到剪贴板 ✓"); }catch(e){ toast("复制失败，请长按选中手动复制"); }
+    document.body.removeChild(ta);
+  };
+  copy();
+});
+
+$("btnNew").addEventListener("click", ()=>{
+  if(grading) return;
+  $("resultArea").style.display = "none";
+  clearStatus("gradeStatus");
+  $("ocrText").value = "";
+  $("questionText").value = "";
+  $("previewArea").style.display = "none";
+  $("boxCanvasWrap").style.display = "none";
+  currentImg = null; currentCanvas = null; lastResultText = "";
+  window.scrollTo({top:0, behavior:"smooth"});
+});
+
+/* ============ 历史记录 ============ */
+function getHist(){ try{ return JSON.parse(localStorage.getItem("grader_hist") || "[]"); }catch(e){ return []; } }
+function saveHist(h){ localStorage.setItem("grader_hist", JSON.stringify(h.slice(0, 10))); }
+function renderHist(){
+  const h = getHist();
+  const box = $("histList");
+  if(!h.length){ box.innerHTML = '<div class="hist-empty">暂无记录。判卷完成后点「保存到历史记录」。</div>'; return; }
+  box.innerHTML = h.map((it, i)=>{
+    const score = (it.result.match(/总分[:：]\s*([0-9]+\s*\/\s*40)/) || [])[1] || "";
+    return '<div class="hist-item">'
+      + '<div class="ht"><span>' + esc(it.time) + '</span>' + (score ? '<span class="score">' + esc(score) + '</span>' : "") + "</div>"
+      + '<div class="hq">' + esc(it.question.slice(0, 80)) + "</div>"
+      + '<div class="btn-row" style="margin-top:8px;">'
+      + '<button class="btn btn-sm btn-outline" data-act="view" data-i="' + i + '">查看</button>'
+      + '<button class="btn btn-sm btn-gray" data-act="del" data-i="' + i + '">删除</button>'
+      + "</div></div>";
+  }).join("");
+}
+renderHist();
+
+$("btnSaveHist").addEventListener("click", ()=>{
+  if(!lastResultText){ toast("还没有判卷结果"); return; }
+  const q = $("questionText").value.trim() || "(未填题目)";
+  const now = new Date();
+  const time = now.toLocaleString("zh-CN", {hour12:false}).replace(/\//g, "-");
+  const h = getHist();
+  h.unshift({time, question: q, result: lastResultText});
+  saveHist(h);
+  renderHist();
+  toast("已保存 ✓");
+});
+
+$("histList").addEventListener("click", (e)=>{
+  const btn = e.target.closest("button[data-act]");
+  if(!btn) return;
+  const i = +btn.dataset.i;
+  const h = getHist();
+  if(btn.dataset.act === "del"){
+    h.splice(i, 1); saveHist(h); renderHist(); toast("已删除");
+  }else{
+    const it = h[i];
+    if(it){
+      $("resultArea").style.display = "block";
+      $("resultDoc").innerHTML = "<pre style='white-space:pre-wrap; margin:0;'>" + esc(it.result) + "</pre>";
+      lastResultText = it.result;
+      $("questionText").value = it.question;
+      window.scrollTo({top:0, behavior:"smooth"});
+    }
+  }
+});
+
+$("btnClearHist").addEventListener("click", ()=>{
+  if(!confirm("确定清空全部历史记录吗？")) return;
+  localStorage.removeItem("grader_hist");
+  renderHist();
+  toast("已清空");
+});
+
+/* 快捷键：输入框回车不误触 */
+document.addEventListener("keydown", (e)=>{
+  if(e.key === "Enter" && e.target.tagName === "INPUT" && e.target.type !== "password") e.preventDefault();
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" onerror="console.warn('marked 加载失败，结果将以纯文本显示')"></script>
+</body>
+</html>
