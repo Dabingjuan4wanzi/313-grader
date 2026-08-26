@@ -1,0 +1,6 @@
+# Python
+__pycache__/
+*.pyc
+
+# 已弃用的 PaddleOCR.js 离线方案（不再使用，体积大勿提交）
+build/

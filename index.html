@@ -183,11 +183,12 @@ details li{margin:5px 0;}
 
   <label class="field" style="margin-top:16px;">② 图片文字识别方式</label>
   <div class="seg" id="ocrMode">
+    <label class="seg-item"><input type="radio" name="ocrMode" value="baidu">百度高精度（推荐）</label>
     <label class="seg-item"><input type="radio" name="ocrMode" value="builtin">内置识别（免费）</label>
     <label class="seg-item"><input type="radio" name="ocrMode" value="api">自定义 OCR API</label>
     <label class="seg-item"><input type="radio" name="ocrMode" value="pstudio">AI Studio（异步）</label>
   </div>
-  <p class="hint" style="margin-top:6px;"><b>内置识别</b>：免费、无需配置、图片不出手机，首次下载识别模型约 8MB。<b>自定义 API</b>：填你自己的 OCR 服务。<b>AI Studio</b>：用百度 PaddleOCR 云服务（识别质量高，需中转）。</p>
+  <p class="hint" style="margin-top:6px;"><b>百度高精度</b>：用百度超大字库云识别，手写准确率最高、速度快，需一次免费配置（见下方）。<b>内置识别</b>：免费、无需配置、图片不出手机，下载模型约 8MB。<b>自定义 API</b>：填你自己的 OCR 服务。<b>AI Studio</b>：用百度 PaddleOCR 云服务（识别质量高，需中转）。</p>
 
   <div id="apiCfg" style="display:none; margin-top:12px; border-top:1px dashed var(--line); padding-top:12px;">
     <label class="field">OCR API 地址</label>
@@ -203,6 +204,17 @@ details li{margin:5px 0;}
     <label class="field">中转地址（<b>可留空</b>，留空时自动探测可用中转）</label>
     <div class="keyrow"><input type="url" id="psProxy" placeholder="留空即可，或填你自己的中转（如 http://电脑IP:8080/proxy?url=）" style="flex:1;"></div>
     <p class="hint">AI Studio 服务端不允许网页直接访问，必须经中转。点「开始识别」时会自动从多个公共中转里挑能用的；找不到时会提示你。注意：使用公共中转时图片会经过该中转服务器。</p>
+  </div>
+
+  <div id="baiduCfg" style="display:none; margin-top:12px; border-top:1px dashed var(--line); padding-top:12px;">
+    <label class="field">Cloudflare 代理地址（必填，https 开头）</label>
+    <div class="keyrow"><input type="url" id="bdProxy" placeholder="https://你的worker.workers.dev" style="flex:1;"></div>
+    <label class="field">百度 API Key（必填）</label>
+    <div class="keyrow"><input type="text" id="bdAK" placeholder="粘贴你百度云的 API Key" style="flex:1;"></div>
+    <label class="field">百度 Secret Key（必填）</label>
+    <div class="keyrow"><input type="text" id="bdSK" placeholder="粘贴你百度云的 Secret Key（保密，只存本机浏览器）" style="flex:1;"></div>
+    <p class="hint">这个方法能把百度"超大字库"高精度识别接到网页，手写又快又准。需一次性免费配置：① 在百度智能云领取文字识别免费额度并建应用，拿到 <b>API Key / Secret Key</b>；② 用仓库里的 Cloudflare Worker 免费部署一个转发地址，把地址填到上面。详细步骤见仓库 <code>worker/README.md</code>。图片和密钥会经过你部署的 Cloudflare 代理再传到百度，请只给自己用。</p>
+    <p class="hint" style="color:var(--ink3);">没有代理也能测？在电脑上双击 <code>start-grader.bat</code>、手机连同一 WiFi 打开时，代理地址可填 <code>http://电脑IP:8080</code>，走本地内置中转即可（百度高精度免费额度约每天 500 次）。</p>
   </div>
 </div>
 
@@ -413,6 +425,9 @@ function flushConfigs(){
   c.token = $("ocrApiToken").value.trim();
   c.psToken = $("psToken").value.trim();
   c.psProxy = $("psProxy").value.trim();
+  c.bdProxy = $("bdProxy").value.trim();
+  c.bdAK = $("bdAK").value.trim();
+  c.bdSK = $("bdSK").value.trim();
   saveOcrCfg(c);
   const k = $("apiKey").value.trim();
   if(k && k.startsWith("sk-")){ localStorage.setItem("ds_key", k); }
@@ -440,7 +455,7 @@ function getOcrCfg(){ try{ return JSON.parse(localStorage.getItem("ocr_cfg") || 
 function saveOcrCfg(c){ localStorage.setItem("ocr_cfg", JSON.stringify(c)); }
 function currentMode(c){
   c = c || getOcrCfg();
-  if(c.mode === "pstudio" || c.mode === "api" || c.mode === "builtin") return c.mode;
+  if(c.mode === "baidu" || c.mode === "pstudio" || c.mode === "api" || c.mode === "builtin") return c.mode;
   return c.useApi ? "api" : "builtin";
 }
 function renderOcrCfg(){
@@ -456,6 +471,10 @@ function renderOcrCfg(){
   $("psToken").value = c.psToken || "";
   $("psProxy").value = c.psProxy || "";
   $("pstudioCfg").style.display = mode === "pstudio" ? "block" : "none";
+  $("bdProxy").value = c.bdProxy || "";
+  $("bdAK").value = c.bdAK || "";
+  $("bdSK").value = c.bdSK || "";
+  $("baiduCfg").style.display = mode === "baidu" ? "block" : "none";
 }
 document.querySelectorAll('input[name="ocrMode"]').forEach(r=>{
   r.addEventListener("change", ()=>{
@@ -467,6 +486,9 @@ $("ocrApiUrl").addEventListener("input", ()=>{ const c = getOcrCfg(); c.url = $(
 $("ocrApiToken").addEventListener("input", ()=>{ const c = getOcrCfg(); c.token = $("ocrApiToken").value.trim(); saveOcrCfg(c); });
 $("psToken").addEventListener("input", ()=>{ const c = getOcrCfg(); c.psToken = $("psToken").value.trim(); saveOcrCfg(c); });
 $("psProxy").addEventListener("input", ()=>{ const c = getOcrCfg(); c.psProxy = $("psProxy").value.trim(); saveOcrCfg(c); });
+$("bdProxy").addEventListener("input", ()=>{ const c = getOcrCfg(); c.bdProxy = $("bdProxy").value.trim(); saveOcrCfg(c); });
+$("bdAK").addEventListener("input", ()=>{ const c = getOcrCfg(); c.bdAK = $("bdAK").value.trim(); saveOcrCfg(c); });
+$("bdSK").addEventListener("input", ()=>{ const c = getOcrCfg(); c.bdSK = $("bdSK").value.trim(); saveOcrCfg(c); });
 renderOcrCfg();
 
 /* ============ 图片上传与压缩 ============ */
@@ -531,7 +553,9 @@ $("btnOcr").addEventListener("click", async ()=>{
   $("btnOcr").disabled = true;
   try{
     const mode = currentMode();
-    if(mode === "api" && getOcrCfg().url){
+    if(mode === "baidu"){
+      await recognizeBaidu();
+    }else if(mode === "api" && getOcrCfg().url){
       await recognizeWithApi();
     }else if(mode === "pstudio"){
       await recognizePstudio();
@@ -653,6 +677,60 @@ function extractOcrText(json){
   };
   walk(json, 0);
   return lines.join("\n");
+}
+
+/* ============ 百度高精度 OCR（经 Cloudflare Worker / 本地 server 的 /ocr 代理） ============ */
+async function recognizeBaidu(){
+  flushConfigs();
+  const cfg = getOcrCfg();
+  const proxy = (cfg.bdProxy || "").trim();
+  const ak = (cfg.bdAK || "").trim();
+  const sk = (cfg.bdSK || "").trim();
+  if(!proxy){ throw new Error("请先在第 0 步「百度高精度」里填写 Cloudflare 代理地址（部署步骤见仓库 worker/README.md）。"); }
+  if(!ak || !sk){ throw new Error("请先在第 0 步「百度高精度」里填写百度云 API Key 和 Secret Key。"); }
+  if(/^http:\/\//.test(proxy) && location.protocol === "https:"){
+    throw new Error("当前是加密页面（https），浏览器会拦截 http 开头的本地地址。请把代理填成 Cloudflare 的 https 地址；只有用电脑跑 start-grader.bat 的局域网页面，才可填 http://电脑IP:8080。");
+  }
+  setStatus("ocrStatus", "info", '<span class="spin"></span>正在上传图片到百度云高精度识别…');
+  const base = proxy.replace(/\/+$/, "");
+  const endpoint = /\/ocr$/.test(base) ? base : base + "/ocr";
+  const b64 = currentCanvas.toDataURL("image/jpeg", 0.9).split(",")[1];
+  const ctrl = new AbortController();
+  const timer = setTimeout(()=>ctrl.abort(), 45000);
+  let resp;
+  try{
+    resp = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_key: ak, secret_key: sk, image: b64 }),
+      signal: ctrl.signal
+    });
+  }catch(e){
+    if(e && e.name === "AbortError") throw new Error("识别请求超时（45 秒无响应）。请检查代理地址与网络。");
+    throw e;
+  }finally{ clearTimeout(timer); }
+  if(!resp.ok){
+    if(resp.status === 0 || resp.type === "opaque") throw new Error("无法连接代理服务（可能未开启跨域 CORS，或地址不对）。");
+    throw new Error("识别服务返回错误 HTTP " + resp.status);
+  }
+  const j = await resp.json();
+  if(!j || j.ok !== true) throw new Error((j && j.error) || "识别失败，代理未返回有效结果。");
+  const texts = Array.isArray(j.texts) ? j.texts : [];
+  const items = Array.isArray(j.items) ? j.items : [];
+  const text = texts.join("\n").replace(/\r/g, "").split("\n").map(l=>l.trim()).join("\n").replace(/\n{3,}/g, "\n\n");
+  window.__ocrPoints = items
+    .map(it => (it && Array.isArray(it.points) && it.points.length) ? it.points : null)
+    .filter(Boolean);
+  renderBoxes();
+  $("ocrText").value = text;
+  $("boxCanvasWrap").style.display = "block";
+  if(!text.trim()){
+    setStatus("ocrStatus", "warn", "没有识别到文字。请确认图片清晰、光线均匀，或检查百度识别免费额度是否用完。");
+  }else{
+    const lines = text.split("\n").filter(l=>l.trim()).length;
+    setStatus("ocrStatus", "ok", "识别完成（百度高精度），共 " + lines + " 行。请逐行校对错字，改完后再进入下一步。");
+    toast("识别完成，请校对");
+  }
 }
 
 /* ============ PaddleOCR AI Studio（异步作业，需中转） ============ */

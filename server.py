@@ -31,6 +31,18 @@ def get_lan_ip():
     except Exception:
         return "127.0.0.1"
 
+def get_baidu_token(ak, sk):
+    """用百度云的 API Key / Secret Key 换取 access_token（有效期 30 天）。"""
+    url = ("https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials"
+           "&client_id=" + urllib.parse.quote(ak) +
+           "&client_secret=" + urllib.parse.quote(sk))
+    req = urllib.request.Request(url, method="POST")
+    with urllib.request.urlopen(req, timeout=PROXY_TIMEOUT) as r:
+        j = json.loads(r.read().decode("utf-8"))
+    if not j.get("access_token"):
+        raise RuntimeError("获取百度 token 失败: " + j.get("error_description", "")[:200])
+    return j["access_token"]
+
 def proxy(target, method, headers, body):
     """把请求转发到 target，返回 (status, resp_headers, body_bytes)。"""
     req = urllib.request.Request(target, data=body, method=method)
@@ -76,13 +88,76 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urllib.parse.urlsplit(self.path)
-        if parsed.path.rstrip("/") == "/proxy":
+        path = parsed.path.rstrip("/")
+        if path == "/proxy":
             length = int(self.headers.get("Content-Length") or 0)
             body = self.rfile.read(length) if length else None
             self.handle_proxy("POST", body)
             return
+        if path in ("/ocr", "/bd-ocr"):
+            length = int(self.headers.get("Content-Length") or 0)
+            body = self.rfile.read(length) if length else b""
+            self.handle_baidu_ocr(body)
+            return
         self.send_response(405)
         self.end_headers()
+
+    def handle_baidu_ocr(self, body):
+        try:
+            payload = json.loads(body or b"{}")
+        except Exception:
+            self._json_resp(400, {"ok": False, "error": "请求体不是合法 JSON"})
+            return
+        ak = (payload.get("api_key") or "").strip()
+        sk = (payload.get("secret_key") or "").strip()
+        img = (payload.get("image") or "").strip()
+        if not ak or not sk:
+            self._json_resp(400, {"ok": False, "error": "缺少 api_key / secret_key"})
+            return
+        if not img:
+            self._json_resp(400, {"ok": False, "error": "缺少 image"})
+            return
+        try:
+            token = get_baidu_token(ak, sk)
+            form = urllib.parse.urlencode({
+                "image": img,
+                "detect_direction": "true"
+            }).encode("utf-8")
+            url = ("https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic"
+                   "?access_token=" + urllib.parse.quote(token))
+            req = urllib.request.Request(
+                url, data=form,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                method="POST")
+            with urllib.request.urlopen(req, timeout=PROXY_TIMEOUT) as r:
+                j = json.loads(r.read().decode("utf-8"))
+            if j.get("error_code"):
+                self._json_resp(200, {
+                    "ok": False,
+                    "error": j.get("error_msg") or ("百度错误码 " + str(j.get("error_code")))
+                })
+                return
+            items = []
+            for w in j.get("words_result") or []:
+                l = w.get("location") or {}
+                left = l.get("left", 0); top = l.get("top", 0)
+                width = l.get("width", 0); height = l.get("height", 0)
+                items.append({
+                    "text": w.get("words", ""),
+                    "points": [[left, top], [left + width, top],
+                               [left + width, top + height], [left, top + height]],
+                })
+            self._json_resp(200, {
+                "ok": True,
+                "texts": [x["text"] for x in items],
+                "items": items
+            })
+        except urllib.error.HTTPError as e:
+            self._json_resp(e.code, {"ok": False, "error": "百度接口返回 HTTP " + str(e.code)})
+        except Exception as e:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            self._json_resp(502, {"ok": False, "error": "百度识别失败: " + repr(e)})
 
     def handle_proxy(self, method, body):
         qs = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
