@@ -1,5 +1,6 @@
-/* PP-OCRv4 浏览器端识别引擎（onnxruntime-web + WASM 单线程）
- * 依赖：./v4/ort.min.js、./v4/det.onnx、./v4/rec_fixed.onnx、./v4/keys.txt
+/* PP-OCR 浏览器端识别引擎（onnxruntime-web + WASM 单线程）
+ * 依赖：./v4/ort.min.js、./v4/det.onnx、./v4/rec_v3_fixed.onnx、./v4/keys.txt
+ * rec 模型为固定输入 [1,3,32,640]、输出 [1,80,6625]
  */
 (function (global) {
   "use strict";
@@ -30,27 +31,6 @@
     const keys = keysText.split("\n");
     engine = { ort, det, rec, keys, ready: true };
     return engine;
-  }
-
-  /* 图片 → NCHW float tensor（缩放 + 归一化），不 pad */
-  function imageToTensor(srcCanvas, w, h, mean, std) {
-    const c = document.createElement("canvas");
-    c.width = w; c.height = h;
-    const ctx = c.getContext("2d", { willReadFrequently: true });
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(srcCanvas, 0, 0, w, h);
-    const d = ctx.getImageData(0, 0, w, h).data;
-    const data = new Float32Array(3 * w * h);
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const i = (y * w + x) * 4;
-        data[0 * w * h + y * w + x] = (d[i] / 255 - mean[0]) / std[0];
-        data[1 * w * h + y * w + x] = (d[i + 1] / 255 - mean[1]) / std[1];
-        data[2 * w * h + y * w + x] = (d[i + 2] / 255 - mean[2]) / std[2];
-      }
-    }
-    return data;
   }
 
   /* det 预处理：缩放最长边 960、pad 到 960x960 */
@@ -163,7 +143,8 @@
     ctx2.fillRect(0, 0, targetW, targetH);
     ctx2.drawImage(c, 0, 0, targetW, targetH);
     const d = ctx2.getImageData(0, 0, targetW, targetH).data;
-    const full = new Float32Array(3 * 32 * 640);
+    /* 固定宽度的右补白区域用“白色”的归一化值(1.0)，避免空白被当成灰色文字 */
+    const full = new Float32Array(3 * 32 * 640).fill(1.0);
     for (let ch = 0; ch < 3; ch++) {
       for (let y = 0; y < 32; y++) {
         for (let x = 0; x < targetW; x++) {
@@ -177,7 +158,9 @@
 
   /* CTC 贪心解码 */
   function ctcDecode(prob, keys) {
-    const seq = 80, cls = 6625;
+    const cls = 6625; /* 与本仓库 rec_v3_fixed.onnx 的输出类别数一致 */
+    const seq = prob.length && cls ? Math.round(prob.length / cls) : 0;
+    if (seq <= 0) return "";
     let out = "";
     let prev = -1;
     for (let t = 0; t < seq; t++) {
@@ -194,6 +177,50 @@
       prev = maxI;
     }
     return out;
+  }
+
+  /* 检测框 → 按“阅读顺序”排列，并把同一视觉行里被切碎的碎片合并成一个框。
+   * 手写体里同一行常被检测成上下堆叠/左右断开的多块，这里按横向重叠聚成行，
+   * 行内再按 x 从左到右合并近邻块，返回将是“一行一个框”的有序结果。 */
+  function orderAndMergeLines(boxes) {
+    const list = boxes.slice().sort((a, b) => (a.y + a.h / 2) - (b.y + b.h / 2));
+    const rows = [];
+    for (const b of list) {
+      const bh = Math.max(1, b.h);
+      let placed = false;
+      for (const row of rows) {
+        const overlap = Math.min(b.y + b.h, row.y1) - Math.max(b.y, row.y0) + 1;
+        if (overlap > bh * 0.5) {
+          row.boxes.push(b);
+          row.y0 = Math.min(row.y0, b.y);
+          row.y1 = Math.max(row.y1, b.y + b.h);
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) rows.push({ boxes: [b], y0: b.y, y1: b.y + b.h });
+    }
+    rows.sort((a, b) => (a.y0 + a.y1) / 2 - (b.y0 + b.y1) / 2);
+    const spans = [];
+    for (const row of rows) {
+      const lineH = Math.max(1, row.y1 - row.y0);
+      const bs = row.boxes.slice().sort((a, b) => a.x - b.x);
+      let cur = { x0: bs[0].x, x1: bs[0].x + bs[0].w };
+      for (let i = 1; i < bs.length; i++) {
+        const b = bs[i];
+        const bR = b.x + b.w;
+        if (bR <= cur.x1) continue;              /* 完全被包含，跳过 */
+        const gap = b.x - cur.x1;
+        if (gap < Math.max(8, lineH * 1.2)) {    /* 近邻碎片合并成一行 */
+          cur.x1 = bR;
+        } else {                                  /* 相距太远，当作新一行 */
+          spans.push({ x: cur.x0, y: row.y0, w: cur.x1 - cur.x0, h: lineH });
+          cur = { x0: b.x, x1: bR };
+        }
+      }
+      spans.push({ x: cur.x0, y: row.y0, w: cur.x1 - cur.x0, h: lineH });
+    }
+    return spans;
   }
 
   /* 主识别入口：img 为 HTMLImageElement / canvas */
@@ -213,11 +240,11 @@
         h: Math.round(b.h / ratio)
       }))
       .filter(b => b.w > 2 && b.h > 2);
-    boxesOrig.sort((a, b) => (a.y + a.h / 2) - (b.y + b.h / 2));
+    const ordered = orderAndMergeLines(boxesOrig);
     // rec
     const lines = [];
     const points = [];
-    for (const b of boxesOrig) {
+    for (const b of ordered) {
       const t = recPreprocess(img, b);
       const recOut = await e.rec.run({ x: t });
       const text = ctcDecode(recOut[e.rec.outputNames[0]].data, e.keys);
